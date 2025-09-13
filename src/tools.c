@@ -51,6 +51,9 @@ ssize_t recv_all (int client_fd, void *buf, size_t n, uint8_t require_first) {
       if (r < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
         return 0; // no first byte available yet
       }
+      #ifdef DEV_LOG_PACKETS
+        printf("recv_all error: fd=%d, r=%zd, errno=%d (%s)\n", client_fd, r, errno, strerror(errno));
+      #endif
       return -1; // error or connection closed
     }
   }
@@ -62,17 +65,26 @@ ssize_t recv_all (int client_fd, void *buf, size_t n, uint8_t require_first) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // handle network timeout
         if (get_program_time() - last_update_time > NETWORK_TIMEOUT_TIME) {
+          #ifdef DEV_LOG_PACKETS
+            printf("recv_all timeout: fd=%d, waited=%lld us\n", client_fd, (long long)(get_program_time() - last_update_time));
+          #endif
           disconnectClient(&client_fd, -1);
           return -1;
         }
         task_yield();
         continue;
       } else {
+        #ifdef DEV_LOG_PACKETS
+          printf("recv_all real error: fd=%d, errno=%d (%s)\n", client_fd, errno, strerror(errno));
+        #endif
         total_bytes_received += total;
         return -1; // real error
       }
     } else if (r == 0) {
       // connection closed before full read
+      #ifdef DEV_LOG_PACKETS
+        printf("recv_all connection closed by peer: fd=%d, total=%zu\n", client_fd, total + r);
+      #endif
       total_bytes_received += total;
       return total;
     }

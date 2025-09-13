@@ -990,6 +990,9 @@ void playPickupAnimation (PlayerData *player, uint16_t item, double x, double y,
   sc_spawnEntity(player->client_fd, -1, (uint8_t *)player->name, 69, x + 0.5, y + 0.5, z + 0.5, 0, 0);
 
   // Write a Set Entity Metadata packet for the item
+  #ifdef DEV_LOG_PACKETS
+    printf("Sending packet: 0x5C, fd: %d\n", player->client_fd);
+  #endif
   // There's no packets.c entry for this, as it's not cheaply generalizable
   writeVarInt(player->client_fd, 12 + sizeVarInt(item));
   writeByte(player->client_fd, 0x5C);

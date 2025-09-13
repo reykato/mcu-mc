@@ -19,9 +19,19 @@
 #include "procedures.h"
 #include "packets.h"
 
+#ifdef DEV_LOG_PACKETS
+#define LOG_SC(id) do { \
+  printf("Sending packet: 0x"); \
+  if ((id) < 16) printf("0"); \
+  printf("%X, fd: %d\n", (id), client_fd); \
+} while(0)
+#else
+#define LOG_SC(id) do {} while(0)
+#endif
+
 // S->C Status Response (server list ping)
 int sc_statusResponse (int client_fd) {
-
+  LOG_SC(0x00);
   char header[] = "{"
     "\"version\":{\"name\":\"1.21.8\",\"protocol\":772},"
     "\"description\":{\"text\":\"";
@@ -79,6 +89,7 @@ int cs_loginStart (int client_fd, uint8_t *uuid, char *name) {
 // S->C Login Success
 int sc_loginSuccess (int client_fd, uint8_t *uuid, char *name) {
   printf("Sending Login Success...\n\n");
+  LOG_SC(0x02);
 
   uint8_t name_length = strlen(name);
   writeVarInt(client_fd, 1 + 16 + sizeVarInt(name_length) + name_length + 1);
@@ -131,6 +142,7 @@ int cs_clientInformation (int client_fd) {
 // S->C Clientbound Known Packs
 int sc_knownPacks (int client_fd) {
   printf("Sending Server's Known Packs\n\n");
+  LOG_SC(0x00); // known packs is sent during configuration with id 0x00 in this implementation
   char known_packs[] = {
     0x0e, 0x01, 0x09, 0x6d, 0x69, 0x6e,
     0x65, 0x63, 0x72, 0x61, 0x66, 0x74, 0x04, 0x63,
@@ -160,6 +172,7 @@ int cs_pluginMessage (int client_fd) {
 // S->C Clientbound Plugin Message
 int sc_sendPluginMessage (int client_fd, const char *channel, const uint8_t *data, size_t data_len) {
   printf("Sending Plugin Message\n\n");
+  LOG_SC(0x01);
   int channel_len = (int)strlen(channel);
 
   writeVarInt(client_fd, 1 + sizeVarInt(channel_len) + channel_len + sizeVarInt(data_len) + data_len);
@@ -176,6 +189,7 @@ int sc_sendPluginMessage (int client_fd, const char *channel, const uint8_t *dat
 
 // S->C Finish Configuration
 int sc_finishConfiguration (int client_fd) {
+  LOG_SC(0x03);
   writeVarInt(client_fd, 1);
   writeVarInt(client_fd, 0x03);
   return 0;
@@ -183,7 +197,7 @@ int sc_finishConfiguration (int client_fd) {
 
 // S->C Login (play)
 int sc_loginPlay (int client_fd) {
-
+  LOG_SC(0x2B);
   writeVarInt(client_fd, 47 + sizeVarInt(MAX_PLAYERS) + sizeVarInt(VIEW_DISTANCE) * 2);
   writeByte(client_fd, 0x2B);
   // entity id
@@ -237,7 +251,7 @@ int sc_loginPlay (int client_fd) {
 
 // S->C Synchronize Player Position
 int sc_synchronizePlayerPosition (int client_fd, double x, double y, double z, float yaw, float pitch) {
-
+  LOG_SC(0x41);
   writeVarInt(client_fd, 61 + sizeVarInt(-1));
   writeByte(client_fd, 0x41);
 
@@ -324,7 +338,7 @@ int sc_setCenterChunk (int client_fd, int x, int y) {
 
 // S->C Chunk Data and Update Light
 int sc_chunkDataAndUpdateLight (int client_fd, int _x, int _z) {
-
+  LOG_SC(0x27);
   const int chunk_data_size = (4101 + sizeVarInt(256) + sizeof(network_block_palette)) * 20 + 6 * 12;
   const int light_data_size = 14 + (sizeVarInt(2048) + 2048) * 26;
 
@@ -425,7 +439,7 @@ int sc_chunkDataAndUpdateLight (int client_fd, int _x, int _z) {
 
 // S->C Clientbound Keep Alive (play)
 int sc_keepAlive (int client_fd) {
-
+  LOG_SC(0x26);
   writeVarInt(client_fd, 9);
   writeByte(client_fd, 0x26);
 
@@ -436,7 +450,7 @@ int sc_keepAlive (int client_fd) {
 
 // S->C Set Container Slot
 int sc_setContainerSlot (int client_fd, int window_id, uint16_t slot, uint8_t count, uint16_t item) {
-
+  LOG_SC(0x14);
   writeVarInt(client_fd,
     1 +
     sizeVarInt(window_id) +

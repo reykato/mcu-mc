@@ -25,6 +25,7 @@ void placeTreeStructure (short x, uint8_t y, short z) {
   // Create tree stump
   for (int i = 1; i < height; i ++) {
     setBlockIfReplaceable(x, y + i, z, B_oak_log);
+    task_yield();
   }
   // Keep track of leaf corners, determines random number bit shift
   uint8_t t = 2;
@@ -39,6 +40,7 @@ void placeTreeStructure (short x, uint8_t y, short z) {
       }
       setBlockIfReplaceable(x + i, y + height - 2, z + j, B_oak_leaves);
     }
+    task_yield();
   }
   // Second (top) leaf layer
   for (int i = -1; i <= 1; i ++) {
@@ -50,6 +52,7 @@ void placeTreeStructure (short x, uint8_t y, short z) {
       }
       setBlockIfReplaceable(x + i, y + height, z + j, B_oak_leaves);
     }
+    task_yield();
   }
 
 }

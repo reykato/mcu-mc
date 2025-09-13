@@ -10,7 +10,8 @@
   #include "esp_timer.h"
 
   // Time between vTaskDelay calls in microseconds
-  #define TASK_YIELD_INTERVAL 1000 * 1000
+  // Lowered from 1s to 500ms to yield more frequently on slower ESP chips
+  #define TASK_YIELD_INTERVAL 500 * 1000
   // How many ticks to delay for on each yield
   #define TASK_YIELD_TICKS 1
 

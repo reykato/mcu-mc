@@ -28,8 +28,15 @@
 // Manhattan distance at which mobs despawn
 #define MOB_DESPAWN_DISTANCE 256
 
-// Disables world generation, making the world superflat
-#define DISABLE_WORLDGEN
+// Select world generation type. Options:
+//  - WORLD_TYPE_NORMAL: full procedural terrain (default)
+//  - WORLD_TYPE_SUPERFLAT: flat world suitable for testing/low-memory devices
+#define WORLD_TYPE_NORMAL 0
+#define WORLD_TYPE_SUPERFLAT 1
+// Default world type. Previously this project used DISABLE_WORLDGEN by
+// default, so to preserve existing behaviour change this to
+// WORLD_TYPE_NORMAL if you want procedural terrain instead.
+#define WORLD_TYPE WORLD_TYPE_SUPERFLAT
 
 // Server game mode: 0 - survival; 1 - creative; 2 - adventure; 3 - spectator
 #define GAMEMODE 0
@@ -50,6 +57,10 @@
 // Initial general RNG seed, will be hashed on startup
 // Used in random game events like item drops and mob behavior
 #define INITIAL_RNG_SEED 0xE2B9419
+
+// If defined, pins the server task to a specific core (0 or 1) on SMP
+// ESP32 targets. Leave undefined to let FreeRTOS schedule the task.
+// #define BAREIRON_TASK_PINNED_TO_CORE 0
 
 // Size of each bilinearly interpolated area ("minichunk")
 // For best performance, CHUNK_SIZE should be a power of 2
@@ -153,6 +164,10 @@
 
 // If defined, log chunk generation events
 // #define DEV_LOG_CHUNK_GENERATION
+
+// If defined, log every packet sent and received (packet id in hex, length/state when
+// receiving). Useful for debugging protocol issues. Disabled by default.
+#define DEV_LOG_PACKETS
 
 // If defined, allows dumping world data by sending 0xBEEF (big-endian),
 // and uploading world data by sending 0xFEED, followed by the data buffer.

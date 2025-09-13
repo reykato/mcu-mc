@@ -96,6 +96,9 @@ void handlePacket (int client_fd, int length, int packet_id, int state) {
       // Handle status ping
       if (state == STATE_STATUS) {
         // No need for a packet handler, just echo back the long verbatim
+        #ifdef DEV_LOG_PACKETS
+          printf("Sending packet: 0x01 (status ping response), fd: %d\n", client_fd);
+        #endif
         writeByte(client_fd, 9);
         writeByte(client_fd, 0x01);
         writeUint64(client_fd, readUint64(client_fd));
@@ -647,6 +650,11 @@ int main () {
     }
     // Get client connection state
     int state = getClientState(client_fd);
+    #ifdef DEV_LOG_PACKETS
+      printf("Received packet: 0x");
+      if (packet_id < 16) printf("0");
+      printf("%X, length: %d, state: %d, fd: %d\n", packet_id, length - sizeVarInt(packet_id), state, client_fd);
+    #endif
     // Disconnect on legacy server list ping
     if (state == STATE_NONE && length == 254 && packet_id == 122) {
       disconnectClient(&clients[client_index], 5);
@@ -669,6 +677,9 @@ int main () {
 #ifdef ESP_PLATFORM
 
 void bareiron_main (void *pvParameters) {
+#ifdef ESP_PLATFORM
+  printf("bareiron_main starting on core %d\n", xPortGetCoreID());
+#endif
   main();
   vTaskDelete(NULL);
 }
@@ -680,7 +691,13 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
     esp_wifi_connect();
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     printf("Got IP, starting server...\n\n");
-    xTaskCreate(bareiron_main, "bareiron", 4096, NULL, 5, NULL);
+    #ifdef BAREIRON_TASK_PINNED_TO_CORE
+      printf("Creating bareiron task pinned to core %d\n", BAREIRON_TASK_PINNED_TO_CORE);
+      xTaskCreatePinnedToCore(bareiron_main, "bareiron", 4096, NULL, 5, NULL, BAREIRON_TASK_PINNED_TO_CORE);
+    #else
+      printf("Creating bareiron task (not pinned)\n");
+      xTaskCreate(bareiron_main, "bareiron", 4096, NULL, 5, NULL);
+    #endif
   }
 }
 
