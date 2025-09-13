@@ -159,6 +159,10 @@ uint8_t getHeightAtFromHash (int rx, int rz, int _x, int _z, uint32_t chunk_hash
 // Does *not* account for block changes
 uint8_t getHeightAt (int x, int z) {
 
+#ifdef DISABLE_WORLDGEN
+  // When worldgen is disabled, force a flat surface at Y=80 (height=79)
+  return 80;
+#endif
   int _x = div_floor(x, CHUNK_SIZE);
   int _z = div_floor(z, CHUNK_SIZE);
   int rx = mod_abs(x, CHUNK_SIZE);
@@ -357,26 +361,48 @@ ChunkFeature getFeatureFromAnchor (ChunkAnchor anchor) {
 
 uint8_t getTerrainAt (int x, int y, int z, ChunkAnchor anchor) {
 
+#ifdef DISABLE_WORLDGEN
+  // Superflat: top at y==80 grass, y==79..76 dirt (4 layers), y==1..75 stone, y==0 bedrock, y>80 air
   if (y > 80) return B_air;
-
+  if (y == 80) return B_grass_block;
+  if (y <= 79 && y >= 76) return B_dirt;
+  if (y >= 1 && y <= 75) return B_stone;
+  if (y == 0) return B_bedrock;
+  if (y < 0) return B_bedrock;
+  return B_air;
+#else
+  if (y > 80) return B_air;
   int rx = x % CHUNK_SIZE;
   int rz = z % CHUNK_SIZE;
   if (rx < 0) rx += CHUNK_SIZE;
   if (rz < 0) rz += CHUNK_SIZE;
-
   ChunkFeature feature = getFeatureFromAnchor(anchor);
   uint8_t height = getHeightAtFromHash(rx, rz, anchor.x, anchor.z, anchor.hash, anchor.biome);
-
   return getTerrainAtFromCache(x, y, z, rx, rz, anchor, feature, height);
+#endif
 
 }
 
 uint8_t getBlockAt (int x, int y, int z) {
 
-  if (y < 0) return B_bedrock;
-
+#ifdef DISABLE_WORLDGEN
+  // First, check for any block changes (player-placed / modified blocks)
   uint8_t block_change = getBlockChange(x, y, z);
   if (block_change != 0xFF) return block_change;
+
+  // Superflat: top at y==80 grass, y==79..76 dirt (4 layers), y==1..75 stone, y==0 bedrock, y>80 air
+  if (y > 80) return B_air;
+  if (y == 80) return B_grass_block;
+  if (y <= 79 && y >= 76) return B_dirt;
+  if (y >= 1 && y <= 75) return B_stone;
+  if (y == 0) return B_bedrock;
+  if (y < 0) return B_bedrock;
+  return B_air;
+#else
+  if (y < 0) return B_bedrock;
+  uint8_t block_change = getBlockChange(x, y, z);
+  if (block_change != 0xFF) return block_change;
+#endif
 
   short anchor_x = div_floor(x, CHUNK_SIZE);
   short anchor_z = div_floor(z, CHUNK_SIZE);
@@ -400,29 +426,40 @@ uint8_t chunk_section_height[16][16];
 // Returns the biome at the origin corner of the chunk
 uint8_t buildChunkSection (int cx, int cy, int cz) {
 
-  // Precompute hashes, anchors and features for each relevant minichunk
+#ifdef DISABLE_WORLDGEN
+  // Superflat: top at y==80 grass, y==79..76 dirt (4 layers), y==1..75 stone, y==0 bedrock, y>80 air
+  for (int j = 0; j < 4096; j += 8) {
+    int y = j / 256 + cy;
+    for (int offset = 7; offset >= 0; offset--) {
+      int k = j + offset;
+      uint8_t block;
+      if (y > 80) block = B_air;
+      else if (y == 80) block = B_grass_block;
+      else if (y <= 79 && y >= 76) block = B_dirt;
+      else if (y >= 1 && y <= 75) block = B_stone;
+      else if (y == 0) block = B_bedrock;
+      else if (y < 0) block = B_bedrock;
+      else block = B_air;
+      chunk_section[j + 7 - offset] = block;
+    }
+  }
+#else
+  // ...existing code...
   int anchor_index = 0, feature_index = 0;
   for (int i = cz; i < cz + 16 + CHUNK_SIZE; i += CHUNK_SIZE) {
     for (int j = cx; j < cx + 16 + CHUNK_SIZE; j += CHUNK_SIZE) {
-
       ChunkAnchor *anchor = chunk_anchors + anchor_index;
-
       anchor->x = j / CHUNK_SIZE;
       anchor->z = i / CHUNK_SIZE;
       anchor->hash = getChunkHash(anchor->x, anchor->z);
       anchor->biome = getChunkBiome(anchor->x, anchor->z);
-
-      // Compute chunk features for the minichunks within this section
       if (i != cz + 16 && j != cx + 16) {
         chunk_features[feature_index] = getFeatureFromAnchor(*anchor);
         feature_index ++;
       }
-
       anchor_index ++;
     }
   }
-
-  // Precompute terrain height for entire chunk section
   for (int i = 0; i < 16; i ++) {
     for (int j = 0; j < 16; j ++) {
       anchor_index = (j / CHUNK_SIZE) + (i / CHUNK_SIZE) * (16 / CHUNK_SIZE + 1);
@@ -430,23 +467,15 @@ uint8_t buildChunkSection (int cx, int cy, int cz) {
       chunk_section_height[j][i] = getHeightAtFromAnchors(j % CHUNK_SIZE, i % CHUNK_SIZE, anchor_ptr);
     }
   }
-
-  // Generate 4096 blocks in one buffer to reduce overhead
   for (int j = 0; j < 4096; j += 8) {
-    // These values don't change in the lower array,
-    // since all of the operations are on multiples of 8
     int y = j / 256 + cy;
     int rz = j / 16 % 16;
     int rz_mod = rz % CHUNK_SIZE;
     feature_index = (j % 16) / CHUNK_SIZE + (j / 16 % 16) / CHUNK_SIZE * (16 / CHUNK_SIZE);
     anchor_index = (j % 16) / CHUNK_SIZE + (j / 16 % 16) / CHUNK_SIZE * (16 / CHUNK_SIZE + 1);
-    // The client expects "big-endian longs", which in our
-    // case means reversing the order in which we store/send
-    // each 8 block sequence.
     for (int offset = 7; offset >= 0; offset--) {
       int k = j + offset;
       int rx = k % 16;
-      // Combine all of the cached data to retrieve the block
       chunk_section[j + 7 - offset] = getTerrainAtFromCache(
         rx + cx, y, rz + cz,
         rx % CHUNK_SIZE, rz_mod,
@@ -456,6 +485,7 @@ uint8_t buildChunkSection (int cx, int cy, int cz) {
       );
     }
   }
+#endif
 
   // Apply block changes on top of terrain
   // This does mean that we're generating some terrain only to replace it,

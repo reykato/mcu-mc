@@ -5,8 +5,8 @@
 #include <unistd.h>
 
 #ifdef ESP_PLATFORM
-  #define WIFI_SSID "T&A IoT"
-  #define WIFI_PASS "beepb00pbeep"
+  #define WIFI_SSID "TYLERSRIG"
+  #define WIFI_PASS "FoxBoy0745--"
   void task_yield ();
 #else
   #define task_yield();
@@ -27,6 +27,9 @@
 
 // Manhattan distance at which mobs despawn
 #define MOB_DESPAWN_DISTANCE 256
+
+// Disables world generation, making the world superflat
+#define DISABLE_WORLDGEN
 
 // Server game mode: 0 - survival; 1 - creative; 2 - adventure; 3 - spectator
 #define GAMEMODE 0
