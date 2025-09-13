@@ -5,8 +5,8 @@
 #include <unistd.h>
 
 #ifdef ESP_PLATFORM
-  #define WIFI_SSID "your-ssid"
-  #define WIFI_PASS "your-password"
+  #define WIFI_SSID "T&A IoT"
+  #define WIFI_PASS "beepb00pbeep"
   void task_yield ();
 #else
   #define task_yield();
